@@ -1,0 +1,4 @@
+#!/bin/sh
+
+rsync -av . jmri:/home/pi/console-helper
+ssh jmri /home/pi/console-helper/run

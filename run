@@ -1,0 +1,5 @@
+#!/bin/bash
+echo -e '\033[?17;0;0c' | sudo tee /dev/tty1 > /dev/null
+sudo env XDG_RUNTIME_DIR=/tmp python /home/pi/console-helper/main.py -test
+
+dd bs=1k count=750 if=/dev/zero of=/dev/fb0
