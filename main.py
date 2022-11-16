@@ -1,8 +1,5 @@
 #!/usr/bin/python3
-
 # this is Python _3_
-
-#cow
 
 import os
 import sys
@@ -17,10 +14,36 @@ from PyQt5.QtCore import *
 
 
 class Device:
-    def getHostname(self):
-        name = os.uname()[1]
-        return name
+    def __init__(self):
+        self.data = {
+            'hostname': 'unknown',
+            'if': {
+                'eth0': {
+                    'name': 'unknown',
+                    'addr': '172.29.181.32 / 24',
+                    'state': 'down'
+                },
+                'wlan0': {
+                    'name': 'unknown',
+                    'addr': '192.168.22.21 / 24',
+                    'state': 'down',
+                    'ssid': 'Blue Knobby'
+                }
+            }
+        }
 
+
+    def update(self):
+        self.fetchHostname()
+        self.fetchInterfaces()
+
+
+    def fetchHostname(self):
+        name = os.uname()[1]
+        self.data['hostname'] = name
+
+    def getHostname(self):
+        return self.data['hostname']
 
     def getAddressForInterface(self,ifname):
         addr = netifaces.ifaddresses(ifname)
@@ -30,17 +53,19 @@ class Device:
                 nw = ipaddress.IPv4Network((a['addr'],a['netmask']),strict=False)
                 result = "{} / {}".format(a['addr'], nw.prefixlen)
 
-                return result
+                name = "something.local"
+
+                return (result, name, a['addr'], a['netmask'])
             except ValueError:
                 return None
 
 
-
-    def getInterfaces(self):
+    def fetchInterfaces(self):
         interface = psutil.net_if_stats()
         for i in interface.keys():
-            print("interface {}".format(i))
-            print(interface[i])
+            pass
+            #print("interface {}".format(i))
+            #print(interface[i])
             #print("  up:{isup} speed:{speed} mtu:{mtu}".format(*interface[i]))
 
         interesting_interfaces = [ 'eth0', 'wlan0' ]
@@ -50,9 +75,20 @@ class Device:
             if not i in interesting_interfaces:
                 continue
 
-            addr = self.getAddressForInterface(i)
+            (addr,name,_,_) = self.getAddressForInterface(i)
+
             if addr is not None:
-                print("interface {} => {}".format(i, addr))
+                self.data['if'][i]['addr'] = addr
+                self.data['if'][i]['name'] = name
+
+
+    def getInterfaceInfo(self,intf):
+        if intf in self.data['if']:
+            return self.data['if'][intf]
+
+        return None
+
+
 
 
 
@@ -69,14 +105,14 @@ class MainWindow(QMainWindow):
         self.setGeometry(400, 400, 800,400)
         self.setStyleSheet("background-color: #888")
 
-        label = QLabel(self)
-        label.setText(self.device.getHostname())
-        label.adjustSize()
+        self.hostnameLabel = QLabel(self)
+        self.hostnameLabel.setText(self.device.getHostname())
+        self.hostnameLabel.adjustSize()
         #label.move(200, 40)
         #label.resize(100,40)
-        label.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
-        label.setAlignment(Qt.AlignCenter)
-        label.setGeometry(0, 0, 800, 40)
+        self.hostnameLabel.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.hostnameLabel.setAlignment(Qt.AlignCenter)
+        self.hostnameLabel.setGeometry(0, 0, 800, 40)
 
 
         #logo_image = QPixmap('/home/zoo/blueknobby.png')
@@ -90,13 +126,51 @@ class MainWindow(QMainWindow):
         shutdown_button.setText("Quit" if self.args["test_only"] else "Shut Down")
         shutdown_button.adjustSize()
         shutdown_button.clicked.connect(self.quit_called if self.args["test_only"] else self.shutdown_called)
-        shutdown_button.move(620, 410)
+        shutdown_button.move(650, 410)
         shutdown_button.setEnabled(True)
-        shutdown_button.setStyleSheet("border: 1px solid black;")
 
-        timer = QTimer(self)
-        timer.timeout.connect(self.timerTick)
-        timer.start(1000)
+        eth0Label = QLabel(self)
+        eth0Label.setText("Ethernet:")
+        eth0Label.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        eth0Label.setAlignment(Qt.AlignRight)
+        eth0Label.setGeometry(0, 90, 130, 40)
+
+        self.eth0Hostname = QLabel(self)
+        self.eth0Hostname.setText("eth0Hostname")
+        self.eth0Hostname.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.eth0Hostname.setAlignment(Qt.AlignLeft)
+        self.eth0Hostname.setGeometry(150, 90, 300, 40)
+
+        self.eth0Address = QLabel(self)
+        self.eth0Address.setText("172.29.181.35 / 24")
+        self.eth0Address.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.eth0Address.setAlignment(Qt.AlignLeft)
+        self.eth0Address.setGeometry(475, 90, 300, 40)
+
+        wifiLabel = QLabel(self)
+        wifiLabel.setText("WiFi:")
+        wifiLabel.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        wifiLabel.setAlignment(Qt.AlignRight)
+        wifiLabel.setGeometry(0, 135, 130, 40)
+
+        self.wlan0Hostname = QLabel(self)
+        self.wlan0Hostname.setText("wlan0Hostname")
+        self.wlan0Hostname.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.wlan0Hostname.setAlignment(Qt.AlignLeft)
+        self.wlan0Hostname.setGeometry(150, 135, 300, 40)
+
+        self.wlan0Address = QLabel(self)
+        self.wlan0Address.setText("192.168.22.4 / 24")
+        self.wlan0Address.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.wlan0Address.setAlignment(Qt.AlignLeft)
+        self.wlan0Address.setGeometry(475, 135, 300, 40)
+
+        self.wlan0SSID = QLabel(self)
+        self.wlan0SSID.setText("myownlittleidaho")
+        self.wlan0SSID.setStyleSheet("color: white; background-color: transparent; border: 1px solid black;")
+        self.wlan0SSID.setAlignment(Qt.AlignLeft)
+        self.wlan0SSID.setGeometry(150, 180, 300, 40)
+
 
         self.counterLabel = QLabel(self)
         self.counterLabel.setText( str(self.counter) )
@@ -104,7 +178,21 @@ class MainWindow(QMainWindow):
         self.counterLabel.setAlignment(Qt.AlignCenter)
         self.counterLabel.setGeometry(0, 45, 800, 40)
 
-        #self.setCentralWidget(label)
+        timer = QTimer(self)
+        timer.timeout.connect(self.timerTick)
+        timer.start(1000)
+
+    def updateUI(self):
+        self.hostnameLabel.setText(self.device.getHostname())
+        self.counterLabel.setText (str(self.counter))
+
+        eth0 = self.device.getInterfaceInfo('eth0')
+        if eth0 is not None:
+            print("Update: {}".format(eth0))
+            self.eth0Address.setText( str(eth0['addr']) )
+            self.eth0Hostname.setText( str(eth0['name']) )
+
+
 
     def shutdown_called(self):
         print("Shutdown called")
@@ -116,9 +204,9 @@ class MainWindow(QMainWindow):
         sys.exit(0)
 
     def timerTick(self):
-        print("tick")
         self.counter += 1
-        self.counterLabel.setText (str(self.counter))
+        self.device.update()
+        self.updateUI()
 
 
 
@@ -156,14 +244,13 @@ class App(object):
         app.exec_()
 
     def closeUpShop(self):
-        pass
-        #os.system("dd if=/dev/zero of=/dev/fb0")
+        os.system("dd if=/dev/zero of=/dev/fb0")
 
 
 if __name__=="__main__":
-    #app = App(sys.argv)
-    #app.run()
-    #app.closeUpShop()
+    app = App(sys.argv)
+    app.run()
+    app.closeUpShop()
 
-    d = Device()
-    x = d.getInterfaces()
+    #d = Device()
+    #x = d.getInterfaces()
