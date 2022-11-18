@@ -1,5 +1,9 @@
 #!/bin/bash
+
+# disable the blinking cursor
 echo -e '\033[?17;0;0c' | sudo tee /dev/tty1 > /dev/null
-sudo env XDG_RUNTIME_DIR=/tmp python /home/pi/console-helper/main.py -test
+
+# start the GUI program
+sudo env XDG_RUNTIME_DIR=/tmp python /home/pi/jmri-console-helper/main.py $@
 
 dd bs=1k count=750 if=/dev/zero of=/dev/fb0
